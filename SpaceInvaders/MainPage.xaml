@@ -7,10 +7,46 @@
 
     <Grid x:Name="RootGrid">
         <Grid x:Name="StartScreen" Background="Black">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="SPACE INVADERS" Foreground="White" FontSize="48" HorizontalAlignment="Center" TextAlignment="Center"/>
-                <TextBlock x:Name="EnemyScores" Foreground="White" FontSize="18" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,40,0,20" LineHeight="28"/>
-                <Button Content="Iniciar Jogo" Click="StartGame_Click" Width="200" Height="60" FontSize="22" HorizontalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="20">
+
+                <TextBlock Text="SPACE INVADERS" Foreground="White" FontSize="48"
+                           HorizontalAlignment="Center" TextAlignment="Center"/>
+
+                <StackPanel Margin="0,20,0,0" Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                        <TextBlock Text="???" FontSize="22" Foreground="White" VerticalAlignment="Center" MinWidth="40" TextAlignment="Center"/>
+                        <TextBlock Text="=" FontSize="22" Foreground="White" VerticalAlignment="Center"/>
+                        <TextBlock Text="??? PTS" FontSize="22" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                        <Image Source="ms-appx:///Assets/Images/alien3.png" Width="40" Height="30"/>
+                        <TextBlock Text="=" FontSize="22" Foreground="White" VerticalAlignment="Center"/>
+                        <TextBlock Text="40 PTS" FontSize="22" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                        <Image Source="ms-appx:///Assets/Images/alien2.png" Width="40" Height="30"/>
+                        <TextBlock Text="=" FontSize="22" Foreground="White" VerticalAlignment="Center"/>
+                        <TextBlock Text="20 PTS" FontSize="22" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                        <Image Source="ms-appx:///Assets/Images/alien1.png" Width="40" Height="30"/>
+                        <TextBlock Text="=" FontSize="22" Foreground="White" VerticalAlignment="Center"/>
+                        <TextBlock Text="10 PTS" FontSize="22" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Button Content="Iniciar Jogo" Click="StartGame_Click" Width="200" Height="60"
+                        FontSize="22" HorizontalAlignment="Center" Margin="0,20,0,0"/>
+
+                <StackPanel Margin="0,40,0,0">
+                     <TextBlock Text="CONTROLES" Foreground="Gray" FontSize="18" TextAlignment="Center" Margin="0,0,0,5"/>
+                     <TextBlock Text="Setas ou A/D - Mover" Foreground="White" FontSize="16" TextAlignment="Center"/>
+                     <TextBlock Text="Barra de Espaço - Atirar" Foreground="White" FontSize="16" TextAlignment="Center"/>
+                </StackPanel>
+
             </StackPanel>
         </Grid>
 
@@ -19,7 +55,7 @@
               HorizontalAlignment="Center" VerticalAlignment="Center">
 
             <Canvas x:Name="GameCanvas">
-                <Image x:Name="Player" Source="ms-appx:///Assets/Images/lasercannon.png"
+                <Image x:Name="PlayerImage" Source="ms-appx:///Assets/Images/lasercannon.png"
                        Width="50" Height="40" Canvas.Top="550" Canvas.Left="375"/>
             </Canvas>
 

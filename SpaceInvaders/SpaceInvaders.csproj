@@ -26,5 +26,8 @@
             SkiaRenderer;
         </UnoFeatures>
     </PropertyGroup>
+    <ItemGroup>
+      <UnoSplashScreen Remove="Assets\Splash\splash_screen.svg" />
+    </ItemGroup>
 
 </Project>
