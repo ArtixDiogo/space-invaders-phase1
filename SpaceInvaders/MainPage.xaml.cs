@@ -1,76 +1,67 @@
 using Microsoft.UI;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Text;
 using Windows.System;
-using Windows.UI;
 using SpaceInvaders.Services;
 using SpaceInvaders.Models;
 
 namespace SpaceInvaders
 {
-    /// <summary>
-    /// Classe principal da página do jogo. Atua como o "Maestro",
-    /// coordenando as classes de lógica (Managers) e o estado do jogo.
-    /// </summary>
     public sealed partial class MainPage : Page
     {
-        // Gerenciadores de Lógica
+        // Gerenciadores
+        private readonly SoundManager _soundManager = new();
+        private readonly HighScoreManager _highScoreManager = new();
         private EnemyManager? _enemyManager;
 
         // Estado do Jogo
         private readonly DispatcherTimer _gameTimer = new();
-        private readonly Random _random = new();
         private Player? _player;
         private readonly List<Rectangle> _playerBullets = new();
-        private readonly List<Rectangle> _enemyBullets = new();
-        private readonly List<Rectangle> _barrierBlocks = new();
+        private readonly List<Models.Barrier> _barriers = new(); 
 
         private int _score;
-        private int _nextExtraLifeScore;
 
-        // Constantes
-        private const int WinScore = 2000;
-        private const int InitialPlayerLives = 3;
-        private const int MaxPlayerLives = 6;
+        private const int WinScore = 500;
+        private const double PlayerSpeed = 10;
         private const double PlayerBulletSpeed = -15;
-        private const double EnemyBulletSpeed = 5;
-        
+        private const int BarrierHealth = 4;
+
         public MainPage()
         {
             this.InitializeComponent();
             _gameTimer.Interval = TimeSpan.FromMilliseconds(20);
             _gameTimer.Tick += GameLoop;
             this.KeyDown += OnPageKeyDown;
-            // Adia a inicialização para o evento 'Loaded' para garantir que a UI esteja pronta
             this.Loaded += (s, e) => InitializeGame();
         }
 
-        /// <summary>
-        /// Prepara os gerenciadores de lógica do jogo.
-        /// </summary>
         private void InitializeGame()
         {
             var enemyTypes = new Dictionary<string, EnemyType> {
-                {"alien1", new EnemyType { ImageSource = "ms-appx:///Assets/Images/alien1.png", Points = 10, DisplayName = "Inimigo Básico" }},
-                {"alien2", new EnemyType { ImageSource = "ms-appx:///Assets/Images/alien2.png", Points = 20, DisplayName = "Inimigo Intermediário" }},
-                {"alien3", new EnemyType { ImageSource = "ms-appx:///Assets/Images/alien3.png", Points = 40, DisplayName = "Inimigo Avançado" }},
-                {"alien4", new EnemyType { ImageSource = "ms-appx:///Assets/Images/alien4.png", Points = 200, DisplayName = "Inimigo Misterioso" }}
+                {"alien1", new EnemyType { ImageSource = "ms-appx:///Assets/Images/alien1.png", Points = 10 }},
+                {"alien2", new EnemyType { ImageSource = "ms-appx:///Assets/Images/alien2.png", Points = 20 }},
+                {"alien3", new EnemyType { ImageSource = "ms-appx:///Assets/Images/alien3.png", Points = 40 }},
             };
             
             _enemyManager = new EnemyManager(GameCanvas, enemyTypes);
+            LoadSounds();
+            
+            _soundManager.PlayMusic("start_music");
         }
-        
-        /// <summary>
-        /// Chamado quando o botão "Iniciar Jogo" é clicado.
-        /// </summary>
+
+        private void LoadSounds()
+        {
+            _soundManager.PreloadSound("shoot", @"Sounds\shoot.wav");
+            _soundManager.PreloadSound("invader_killed", @"Sounds\invaderkilled.wav");
+            _soundManager.PreloadSound("start_music", @"Sounds\spaceinvaders1.wav");
+        }
+
         private void StartGame_Click(object sender, RoutedEventArgs e)
         {
+            _soundManager.StopMusic(); 
+
             StartScreen.Visibility = Visibility.Collapsed;
             InGameUI.Visibility = Visibility.Visible;
             SetupNewGame();
@@ -78,106 +69,103 @@ namespace SpaceInvaders
             this.Focus(FocusState.Programmatic);
         }
         
-        /// <summary>
-        /// Configura ou reseta o estado do jogo para um novo início.
-        /// </summary>
+        private async void ShowHighScores_Click(object sender, RoutedEventArgs e)
+        {
+            var scores = await _highScoreManager.GetScoresAsync();
+            var sb = new StringBuilder();
+            sb.AppendLine("MELHORES PONTUAÇÕES:\n");
+
+            if (scores.Any())
+            {
+                int rank = 1;
+                foreach (var score in scores)
+                {
+                    sb.AppendLine($"{rank}. {score} PONTOS");
+                    rank++;
+                }
+            }
+            else
+            {
+                sb.AppendLine("Nenhum placar salvo ainda.");
+            }
+
+            var dialog = new ContentDialog
+            {
+                Title = "Placares",
+                Content = sb.ToString(),
+                CloseButtonText = "Fechar",
+                XamlRoot = this.XamlRoot
+            };
+            await dialog.ShowAsync();
+        }
+
+        private async void ShowControls_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "Controles",
+                Content = "Use as SETAS ESQUERDA/DIREITA ou as teclas A/D para mover.\n\nPressione a BARRA DE ESPAÇO para atirar.",
+                CloseButtonText = "Entendi",
+                XamlRoot = this.XamlRoot
+            };
+            await dialog.ShowAsync();
+        }
+
         private void SetupNewGame()
         {
-            // Limpa todos os elementos visuais do jogo anterior
             GameCanvas.Children.Clear();
             _playerBullets.Clear();
-            _enemyBullets.Clear();
-            _barrierBlocks.Clear();
+            _barriers.Clear();
             
-            // Cria um novo objeto jogador
-            _player = new Player(PlayerImage, InitialPlayerLives);
+            _player = new Player(PlayerImage);
             _player.X = (InGameUI.Width / 2) - (_player.Width / 2);
             _player.Y = 550;
             GameCanvas.Children.Add(_player.Visual);
             
-            // Reseta o placar e as vidas
             _score = 0;
             ScoreText.Text = "0";
-            _nextExtraLifeScore = 1000;
-            UpdateLivesDisplay();
 
-            // Cria os escudos
-            CreatePixelatedBarrier(80, 450);
-            CreatePixelatedBarrier(260, 450);
-            CreatePixelatedBarrier(440, 450);
-            CreatePixelatedBarrier(620, 450);
+            for (int i = 0; i < 4; i++)
+            {
+                var barrierVisual = new Rectangle { Width = 80, Height = 30, Fill = new SolidColorBrush(Colors.LawnGreen) };
+                Canvas.SetLeft(barrierVisual, 80 + i * 180);
+                Canvas.SetTop(barrierVisual, 450);
+                _barriers.Add(new Models.Barrier(barrierVisual, BarrierHealth));
+                GameCanvas.Children.Add(barrierVisual);
+            }
 
-            // Cria a primeira onda de inimigos
             _enemyManager?.SpawnWave();
         }
 
-        /// <summary>
-        /// O loop principal do jogo, executado a cada tick do timer.
-        /// </summary>
         private void GameLoop(object? sender, object e)
         {
             if (_player is null || _enemyManager is null) return;
-
-            // Atualiza o estado de todos os objetos principais
-            _player.Update();
-            _enemyManager.Update(InGameUI.Width, _barrierBlocks);
             
-            MoveBullets();
-            HandleEnemyShooting();
+            _player.Update();
+            MovePlayerBullet();
             CheckCollisions();
 
-            // Se todos os inimigos foram destruídos, cria uma nova onda
             if (_enemyManager.IsSwarmDestroyed && _score < WinScore)
             {
                 _enemyManager.SpawnWave();
             }
         }
         
-        /// <summary>
-        /// Processa a entrada do teclado do jogador.
-        /// </summary>
         private void OnPageKeyDown(object sender, KeyRoutedEventArgs e)
         {
             if (!_gameTimer.IsEnabled || _player is null) return;
             
-            const double playerSpeed = 15;
             switch (e.Key)
             {
-                case VirtualKey.Left or VirtualKey.A:
-                    _player.Move(-playerSpeed, InGameUI.Width);
-                    break;
-                case VirtualKey.Right or VirtualKey.D:
-                    _player.Move(playerSpeed, InGameUI.Width);
-                    break;
-                case VirtualKey.Space:
-                    FirePlayerBullet();
-                    break;
-            }
-        }
-        
-        /// <summary>
-        /// Controla a chance de um inimigo atirar.
-        /// </summary>
-        private void HandleEnemyShooting()
-        {
-            if (_random.Next(100) < 2)
-            {
-                var shooter = _enemyManager?.GetRandomShooter();
-                if (shooter != null)
-                {
-                    FireEnemyBullet(shooter);
-                }
+                case VirtualKey.Left or VirtualKey.A: _player.Move(-PlayerSpeed, InGameUI.Width); break;
+                case VirtualKey.Right or VirtualKey.D: _player.Move(PlayerSpeed, InGameUI.Width); break;
+                case VirtualKey.Space: FirePlayerBullet(); break;
             }
         }
 
-        /// <summary>
-        /// Verifica todas as possíveis colisões no jogo.
-        /// </summary>
         private void CheckCollisions()
         {
             if (_player is null || _enemyManager is null) return;
-
-            // 1. Tiros do jogador vs Inimigos
             foreach (var bullet in _playerBullets.ToList())
             {
                 foreach (var enemy in _enemyManager.Enemies.ToList())
@@ -186,61 +174,34 @@ namespace SpaceInvaders
                     {
                         _score += enemy.Points;
                         ScoreText.Text = _score.ToString();
-                        CheckForExtraLife();
-                        
+                        _soundManager.PlaySound("invader_killed");
                         _enemyManager.RemoveEnemy(enemy);
-                        
                         GameCanvas.Children.Remove(bullet);
                         _playerBullets.Remove(bullet);
-                        goto nextPlayerBullet; // Pula para o próximo tiro do jogador
+                        if (_score >= WinScore) EndGame(true);
+                        return;
                     }
                 }
-                nextPlayerBullet:;
-            }
-
-            // 2. Tiros inimigos vs Jogador
-            foreach (var bullet in _enemyBullets.ToList())
-            {
-                if (CheckCollision(bullet, _player.Visual))
+                foreach (var barrier in _barriers.ToList())
                 {
-                    _player.TakeHit();
-                    UpdateLivesDisplay();
-
-                    GameCanvas.Children.Remove(bullet);
-                    _enemyBullets.Remove(bullet);
-
-                    if (!_player.IsAlive)
+                    if (CheckCollision(bullet, barrier.Visual))
                     {
-                        EndGame(false);
+                        barrier.TakeDamage();
+                        barrier.Visual.Opacity = (double)barrier.Health / barrier.MaxHealth;
+                        GameCanvas.Children.Remove(bullet);
+                        _playerBullets.Remove(bullet);
+                        if (barrier.Health <= 0)
+                        {
+                            GameCanvas.Children.Remove(barrier.Visual);
+                            _barriers.Remove(barrier);
+                        }
                         return;
                     }
                 }
             }
-
-            // 3. Todos os tiros vs Barreiras
-            var allBullets = _playerBullets.Concat(_enemyBullets).ToList();
-            foreach (var bullet in allBullets)
-            {
-                foreach (var block in _barrierBlocks.ToList())
-                {
-                    if (CheckCollision(bullet, block))
-                    {
-                        GameCanvas.Children.Remove(block);
-                        _barrierBlocks.Remove(block);
-                        GameCanvas.Children.Remove(bullet);
-                        if (_playerBullets.Contains(bullet)) _playerBullets.Remove(bullet);
-                        if (_enemyBullets.Contains(bullet)) _enemyBullets.Remove(bullet);
-                        goto nextCombinedBullet;
-                    }
-                }
-                nextCombinedBullet:;
-            }
         }
         
-        /// <summary>
-        /// Move todos os tiros (do jogador e inimigos) na tela.
-        /// </summary>
-        private void MoveBullets()
+        private void MovePlayerBullet()
         {
             foreach (var bullet in _playerBullets.ToList())
             {
@@ -251,122 +212,38 @@ namespace SpaceInvaders
                     _playerBullets.Remove(bullet);
                 }
             }
-            foreach (var bullet in _enemyBullets.ToList())
-            {
-                Canvas.SetTop(bullet, Canvas.GetTop(bullet) + EnemyBulletSpeed);
-                if (Canvas.GetTop(bullet) > InGameUI.Height)
-                {
-                    GameCanvas.Children.Remove(bullet);
-                    _enemyBullets.Remove(bullet);
-                }
-            }
         }
 
-        /// <summary>
-        /// Cria um tiro para o jogador.
-        /// </summary>
         private void FirePlayerBullet()
         {
-            // CORREÇÃO: A condição agora é >= 1, permitindo apenas um tiro.
-            if (_player is null || _player.IsStunned || _playerBullets.Count >= 1) return;
-            
-            var bullet = new Rectangle { Width = 5, Height = 15, Fill = new SolidColorBrush(Colors.LawnGreen) };
+            if (_player is null || _playerBullets.Any()) return; 
+            var bullet = new Rectangle { Width = 5, Height = 15, Fill = new SolidColorBrush(Colors.White) };
             Canvas.SetLeft(bullet, _player.X + _player.Width / 2 - 2.5);
             Canvas.SetTop(bullet, _player.Y - 15);
             _playerBullets.Add(bullet);
             GameCanvas.Children.Add(bullet);
+            _soundManager.PlaySound("shoot");
         }
         
-        /// <summary>
-        /// Cria um tiro para um inimigo.
-        /// </summary>
-        private void FireEnemyBullet(Enemy enemy)
+        private bool CheckCollision(FrameworkElement a, FrameworkElement b)
         {
-            var bullet = new Rectangle { Width = 5, Height = 15, Fill = new SolidColorBrush(Colors.White) };
-            Canvas.SetLeft(bullet, enemy.X + enemy.Width / 2 - 2.5);
-            Canvas.SetTop(bullet, enemy.Y + enemy.Height);
-            _enemyBullets.Add(bullet);
-            GameCanvas.Children.Add(bullet);
+            if (a is null || b is null) return false;
+            double ax = Canvas.GetLeft(a), ay = Canvas.GetTop(a), bx = Canvas.GetLeft(b), by = Canvas.GetTop(b);
+            return ax < bx + b.Width && ax + a.Width > bx && ay < by + b.Height && ay + a.Height > by;
         }
         
-        /// <summary>
-        /// Verifica se a pontuação atingiu o limiar para uma vida extra.
-        /// </summary>
-        private void CheckForExtraLife()
-        {
-            if (_player is null) return;
-            if (_score >= _nextExtraLifeScore)
-            {
-                _player.AddLife(MaxPlayerLives);
-                UpdateLivesDisplay();
-                _nextExtraLifeScore += 1000;
-            }
-        }
-
-        /// <summary>
-        /// Atualiza a exibição visual das vidas do jogador.
-        /// </summary>
-        private void UpdateLivesDisplay()
-        {
-            if (_player is null) return;
-            Life1.Visibility = _player.Lives >= 1 ? Visibility.Visible : Visibility.Collapsed;
-            Life2.Visibility = _player.Lives >= 2 ? Visibility.Visible : Visibility.Collapsed;
-            Life3.Visibility = _player.Lives >= 3 ? Visibility.Visible : Visibility.Collapsed;
-            Life4.Visibility = _player.Lives >= 4 ? Visibility.Visible : Visibility.Collapsed;
-            Life5.Visibility = _player.Lives >= 5 ? Visibility.Visible : Visibility.Collapsed;
-            Life6.Visibility = _player.Lives >= 6 ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        /// <summary>
-        /// Algoritmo genérico de detecção de colisão entre dois elementos.
-        /// </summary>
-        private bool CheckCollision(FrameworkElement elementA, FrameworkElement elementB)
-        {
-            if (elementA is null || elementB is null) return false;
-            double ax = Canvas.GetLeft(elementA);
-            double ay = Canvas.GetTop(elementA);
-            double bx = Canvas.GetLeft(elementB);
-            double by = Canvas.GetTop(elementB);
-            return ax < bx + elementB.Width && ax + elementA.Width > bx && ay < by + elementB.Height && ay + elementA.Height > by;
-        }
-        
-        /// <summary>
-        /// Cria uma barreira de proteção a partir de pequenos blocos.
-        /// </summary>
-        private void CreatePixelatedBarrier(double startX, double startY)
-        {
-            int blockSize = 5;
-            int barrierWidthInBlocks = 16;
-            int barrierHeightInBlocks = 12;
-            for (int row = 0; row < barrierHeightInBlocks; row++)
-            {
-                for (int col = 0; col < barrierWidthInBlocks; col++)
-                {
-                    if (row > 6 && col > 3 && col < 12) { if (row > 8 || (col > 5 && col < 10)) continue; }
-                    Rectangle block = new Rectangle { Width = blockSize, Height = blockSize, Fill = new SolidColorBrush(Colors.LawnGreen) };
-                    Canvas.SetLeft(block, startX + col * blockSize);
-                    Canvas.SetTop(block, startY + row * blockSize);
-                    GameCanvas.Children.Add(block);
-                    _barrierBlocks.Add(block);
-                }
-            }
-        }
-        
-        /// <summary>
-        /// Encerra o jogo e exibe uma caixa de diálogo.
-        /// </summary>
         private async void EndGame(bool playerWon)
         {
             _gameTimer.Stop();
-            var dialog = new ContentDialog {
-                Title = playerWon ? "Você venceu!" : "Fim de Jogo",
-                Content = $"Sua pontuação final foi: {_score}",
-                CloseButtonText = "Jogar Novamente",
-                XamlRoot = this.XamlRoot
-            };
+            
+            await _highScoreManager.AddScoreAsync(_score);
+
+            var dialog = new ContentDialog { Title = playerWon ? "Você Venceu!" : "Fim de Jogo", Content = $"Sua pontuação final foi: {_score}", CloseButtonText = "OK", XamlRoot = this.XamlRoot };
             await dialog.ShowAsync();
+            
             InGameUI.Visibility = Visibility.Collapsed;
             StartScreen.Visibility = Visibility.Visible;
+            _soundManager.PlayMusic("start_music");
         }
     }
 }

@@ -6,6 +6,7 @@
     See https://aka.platform.uno/using-uno-sdk#implicit-packages for more information regarding the Implicit Packages.
   -->
   <ItemGroup>
+    <PackageVersion Include="NAudio" Version="2.2.1" />
     <PackageVersion Include="Uno.WinUI" Version="6.1.34" />
   </ItemGroup>
 </Project>

@@ -29,5 +29,29 @@
     <ItemGroup>
       <UnoSplashScreen Remove="Assets\Splash\splash_screen.svg" />
     </ItemGroup>
+    <ItemGroup>
+      <None Remove="Sounds\barrier_hit.mp3" />
+      <None Remove="Sounds\invader_hit.mp3" />
+      <None Remove="Sounds\shoot.mp3" />
+      <None Remove="Sounds\start.mp3" />
+      <None Remove="Sounds\win.mp3" />
+      <None Remove="Sounds\shoot.wav" />
+    </ItemGroup>
+    <ItemGroup>
+      <PackageReference Include="NAudio" />
+    </ItemGroup>
+    <ItemGroup>
+      <Content Include="Sounds\shoot.wav" />
+      <None Remove="Sounds\spaceinvaders1.wav" />
+      <Content Include="Sounds\spaceinvaders1.wav">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Sounds\explosion.wav" />
+      <None Remove="Sounds\invaderkilled.wav" />
+      <Content Include="Sounds\invaderkilled.wav">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Fonts\pixel-invaders.ttf" />
+    </ItemGroup>
 
 </Project>
