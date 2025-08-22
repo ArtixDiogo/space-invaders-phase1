@@ -41,6 +41,7 @@
       <PackageReference Include="NAudio" />
     </ItemGroup>
     <ItemGroup>
+      <Content Include="Sounds\explosion.wav" />
       <Content Include="Sounds\shoot.wav" />
       <None Remove="Sounds\spaceinvaders1.wav" />
       <Content Include="Sounds\spaceinvaders1.wav">

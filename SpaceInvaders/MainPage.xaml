@@ -54,6 +54,7 @@
                 <TextBlock Text="SCORE: " FontSize="20" Foreground="White"/>
                 <TextBlock x:Name="ScoreText" Text="0" FontSize="20" Foreground="LawnGreen"/>
             </StackPanel>
+            <StackPanel x:Name="LivesPanel" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" Spacing="5"/>
         </Grid>
     </Grid>
 </Page>
