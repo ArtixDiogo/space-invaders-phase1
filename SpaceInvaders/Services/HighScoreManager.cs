@@ -4,39 +4,35 @@
     {
         private const string FileName = "highscores.txt";
 
-        // Método para adicionar uma nova pontuação
-        public async Task AddScoreAsync(int score)
+        // Método para adicionar uma nova pontuação com apelido
+        public async Task AddScoreAsync(string nickname, int score)
         {
-            // Pega a lista de scores atuais
             var scores = await GetScoresAsync();
-            // Adiciona o novo score
-            scores.Add(score);
+            scores[nickname] = scores.ContainsKey(nickname) ? Math.Max(scores[nickname], score) : score;
             
-            // Ordena do maior para o menor e pega apenas os 10 melhores
-            var topScores = scores.OrderByDescending(s => s).Take(10).ToList();
+            var topScores = scores.OrderByDescending(s => s.Value).Take(10);
 
-            // Converte os números para texto para salvar no arquivo
-            var lines = topScores.Select(s => s.ToString());
+            var lines = topScores.Select(s => $"{s.Key}:{s.Value}");
 
-            // Salva no arquivo
             var file = await ApplicationData.Current.LocalFolder.CreateFileAsync(FileName, CreationCollisionOption.ReplaceExisting);
             await FileIO.WriteLinesAsync(file, lines);
         }
 
         // Método para ler as pontuações do arquivo
-        public async Task<List<int>> GetScoresAsync()
+        public async Task<Dictionary<string, int>> GetScoresAsync()
         {
             try
             {
                 var file = await ApplicationData.Current.LocalFolder.GetFileAsync(FileName);
                 var lines = await FileIO.ReadLinesAsync(file);
-                // Converte o texto lido de volta para números
-                return lines.Select(int.Parse).ToList();
+
+                return lines.Select(line => line.Split(':'))
+                    .Where(parts => parts.Length == 2 && int.TryParse(parts[1], out _))
+                    .ToDictionary(parts => parts[0], parts => int.Parse(parts[1]));
             }
             catch (System.IO.FileNotFoundException)
             {
-                // Se o arquivo não existe, retorna uma lista vazia
-                return new List<int>();
+                return new Dictionary<string, int>();
             }
         }
     }
